@@ -1,0 +1,60 @@
+version: "3.9"
+services:
+  db:
+    image: postgres:15
+    container_name: pitchboard-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: pitchboard
+      TZ: Etc/UTC          # ✅ UTC timezone
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+  mongo:
+    image: mongo:6
+    container_name: voice-coaching-mongo
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password123
+      MONGO_INITDB_DATABASE: voice-coaching-dev
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+      - ./scripts/mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+
+  redis:
+    image: redis:7
+    container_name: pitchboard-redis
+    restart: always
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+
+  backend:
+    build: ./back-end
+    container_name: pitchboard-backend
+    restart: always
+    environment:
+      POSTGRES_URL: postgresql://postgres:postgres@localhost:5432/pitchboard?schema=public
+      MONGO_URL: mongodb://admin:password123@localhost:27017/voice-coaching-dev?authSource=admin
+      REDIS_URL: redis://localhost:6379
+      JWT_SECRET: super-secret-jwt-key-for-development
+      NODE_ENV: development
+    ports:
+      - "4000:4000"
+    depends_on:
+      - db
+      - mongo
+      - redis
+
+volumes:
+  postgres-data:
+  mongo-data:
+  redis-data:
